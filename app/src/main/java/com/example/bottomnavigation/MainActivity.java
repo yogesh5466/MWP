@@ -1,14 +1,21 @@
 package com.example.bottomnavigation;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.safetynet.SafetyNet;
+import com.google.android.gms.safetynet.SafetyNetApi;
+import com.google.android.gms.tasks.Tasks;
+
+import java.util.concurrent.ExecutionException;
+
 public class MainActivity extends AppCompatActivity {
     private android.support.v4.app.Fragment frag1,frag2,frag3;
-
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -55,6 +62,40 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+
     }
+
+    @Override
+    protected void onPause(){
+        SafetyNet.getClient(this).shutdownSafeBrowsing();
+        super.onPause();
+
+    }
+    @Override
+    protected void onResume(){
+        Thread thread = new Thread(){
+            public void run(){
+                try {
+                    Tasks.await(SafetyNet.getClient(MainActivity.this).initSafeBrowsing());
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        super.onResume();
+
+    }
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+
+    }
+
+
+
+
+
 
 }
