@@ -30,14 +30,10 @@ import com.androidnetworking.error.ANError;
 import com.androidnetworking.interfaces.JSONArrayRequestListener;
 import com.androidnetworking.interfaces.JSONObjectRequestListener;
 import com.androidnetworking.interfaces.OkHttpResponseListener;
-import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.common.api.CommonStatusCodes;
-import com.google.android.gms.safetynet.SafeBrowsingThreat;
-import com.google.android.gms.safetynet.SafetyNet;
-import com.google.android.gms.safetynet.SafetyNetApi;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Tasks;
+import com.crashlytics.android.Crashlytics;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+
 
 
 import okhttp3.Response;
@@ -45,14 +41,6 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -77,12 +65,16 @@ public class urlfragment extends android.support.v4.app.Fragment implements
     String urls;
     EditText text;
     String responseJSON;
+    private AdView mAdView;
 
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup viewGroup, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.urlfrag, viewGroup, false);
         AndroidNetworking.initialize(getActivity().getApplicationContext());
+        mAdView = view.findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
         scan = view.findViewById(R.id.button);
         text = view.findViewById(R.id.editText);
         scan.setOnClickListener(this);
@@ -91,7 +83,6 @@ public class urlfragment extends android.support.v4.app.Fragment implements
 
     @Override
     public void onClick(View view) {
-
         switch (view.getId()) {
             case R.id.button:
                 urls = text.getText().toString();
@@ -99,6 +90,9 @@ public class urlfragment extends android.support.v4.app.Fragment implements
                     if (urls != null && !urls.isEmpty() && Patterns.WEB_URL.matcher(urls).matches()) {
                         if ((!urls.startsWith("https://")) && (!urls.startsWith("http://"))) {
                             urls = "https://" + urls;
+                        }
+                        if(urls.startsWith("http://")){
+                            urls = urls.replaceFirst("^(http|https)://", "https://");
                         }
                         Malicious m = new Malicious(this);
                         m.execute(urls);
@@ -129,31 +123,17 @@ public class urlfragment extends android.support.v4.app.Fragment implements
     }
 
     public boolean isOnline() {
-        ConnectivityManager cm =
-                (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(getActivity()!=null) {
+            ConnectivityManager cm =
+                    (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
 
-        return cm.getActiveNetworkInfo() != null &&
-                cm.getActiveNetworkInfo().isConnectedOrConnecting();
+            return cm.getActiveNetworkInfo() != null &&
+                    cm.getActiveNetworkInfo().isConnectedOrConnecting();
+        }
+        return false;
     }
 
-    public void showDialog(Activity activity, String title, CharSequence message, Intent act) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 
-        if (title != null) builder.setTitle(title);
-
-        builder.setMessage(message);
-        builder.setPositiveButton("ok", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                // User clicked OK button
-            }
-        });
-        builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                // User cancelled the dialog
-            }
-        });
-        builder.show();
-    }
 
 
     @Override

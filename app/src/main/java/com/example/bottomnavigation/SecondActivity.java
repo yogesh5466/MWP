@@ -2,13 +2,14 @@ package com.example.bottomnavigation;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.view.KeyEvent;
-import android.webkit.WebSettings;
+import android.view.View;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.widget.ProgressBar;
 
 public class SecondActivity extends Activity {
     private WebView myWebView;
+    ProgressBar loader;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -16,35 +17,20 @@ public class SecondActivity extends Activity {
 
         String url = getIntent().getStringExtra("url");
         myWebView = (WebView) findViewById(R.id.webView);
-        myWebView.setWebViewClient(new WebViewClient()
-        {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+        loader = (ProgressBar) findViewById(R.id.loader);
 
-                try {
+        myWebView.getSettings().setBuiltInZoomControls(true);
+        myWebView.getSettings().setDisplayZoomControls(false);
+        myWebView.loadUrl(url);
 
-                    myWebView.loadUrl(url);
-
-                } catch (Exception e) {
-                    e.printStackTrace();
+        myWebView.setWebChromeClient(new WebChromeClient() {
+            public void onProgressChanged(WebView view, int progress) {
+                if (progress == 100) {
+                    loader.setVisibility(View.GONE);
+                } else {
+                    loader.setVisibility(View.VISIBLE);
                 }
-                return false;
             }
         });
-        WebSettings webSettings = myWebView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        myWebView.loadUrl(url);
-    }
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Check if the key event was the Back button and if there's history
-        if ((keyCode == KeyEvent.KEYCODE_BACK) && myWebView.canGoBack()) {
-            myWebView.goBack();
-            return true;
-        }
-        // If it wasn't the Back key or there's no web page history, bubble up to the default
-        // system behavior (probably exit the activity)
-        return super.onKeyDown(keyCode, event);
     }
 }

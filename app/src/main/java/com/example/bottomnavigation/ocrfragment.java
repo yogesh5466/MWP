@@ -1,9 +1,10 @@
 package com.example.bottomnavigation;
 
 
-
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -11,12 +12,16 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.util.Patterns;
 import android.util.SparseArray;
 import android.view.*;
+import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.androidnetworking.AndroidNetworking;
 import com.androidnetworking.common.Priority;
 import com.androidnetworking.error.ANError;
@@ -31,29 +36,40 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 public class ocrfragment extends android.support.v4.app.Fragment implements
         View.OnClickListener,
         View.OnTouchListener,
-        OnTaskCompleted{
+        OnTaskCompleted {
     private SurfaceView mCameraView;
     private TextView mTextView;
     private CameraSource mCameraSource;
     private static final String TAG = "SecondActivity";
     private static final int requestPermissionID = 101;
-    private String s,s1;
+    private String s, s1;
     private ArrayList a;
     private String responseJSON;
-
+    ArrayAdapter<String> arrayAdapter;
+    Wrapper w = new Wrapper();
+    int flag = 1, flag1 = 0;
 
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup viewGroup, Bundle savedInstanceState) {
+        if (ContextCompat.checkSelfPermission(getActivity().getApplicationContext(), Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_DENIED)
+        {
+            ActivityCompat.requestPermissions(getActivity(), new String[] {Manifest.permission.CAMERA}, 100);
+        }
         View view = inflater.inflate(R.layout.ocrfrag, viewGroup, false);
-        mCameraView = view.findViewById(R.id.surfaceView);mTextView = view.findViewById(R.id.text_view);
+        mCameraView = view.findViewById(R.id.surfaceView);
+        mTextView = view.findViewById(R.id.text_view);
+        arrayAdapter = new ArrayAdapter<String>(getContext(), android.R.layout.select_dialog_singlechoice);
         startCameraSource();
         return view;
     }
@@ -142,62 +158,70 @@ public class ocrfragment extends android.support.v4.app.Fragment implements
                 @Override
                 public void receiveDetections(Detector.Detections<TextBlock> detections) {
                     final SparseArray<TextBlock> items = detections.getDetectedItems();
-                    if (items.size() != 0 ){
+                    if (flag == 1) {
+                        flag = 0;
+                        if (items.size() != 0) {
 
-                        mTextView.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                StringBuilder stringBuilder = new StringBuilder();
-                                for(int i=0;i<items.size();i++){
-                                    TextBlock item = items.valueAt(i);
-                                    stringBuilder.append(item.getValue());
-                                    stringBuilder.append("\n");
-                                }
-                                s=stringBuilder.toString();
-                                mTextView.setText(stringBuilder.toString());
-                                a=pullLinks(s);
-                                if (isOnline()) {
-                                    while (!a.isEmpty()) {
-                                        if (Patterns.WEB_URL.matcher(a.get(0).toString()).matches()) {
-                                            if ((!a.get(0).toString().startsWith("https://")) && (!a.get(0).toString().startsWith("http://"))) {
-                                                s1 = "https://" + a.get(0).toString();
-                                            }
-                                            AndroidNetworking.get(s1)
-                                                    .addPathParameter("pageNumber", "0")
-                                                    .addQueryParameter("limit", "3")
-                                                    .setPriority(Priority.LOW)
-                                                    .build()
-                                                    .getAsOkHttpResponse(new OkHttpResponseListener() {
-                                                        @Override
-                                                        public void onResponse(Response response) {
-                                                            // do anything with response
-                                                            if (response.isSuccessful()) {
-                                                                Malicious123 m = new Malicious123(ocrfragment.this);
-                                                                m.execute(s1);
-                                                            }
-                                                        }
-
-                                                        @Override
-                                                        public void onError(ANError anError) {
-                                                            // handle error
-
-
-                                                        }
-                                                    });
-                                        }
-                                        a.remove(0);
+                            mTextView.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    StringBuilder stringBuilder = new StringBuilder();
+                                    for (int i = 0; i < items.size(); i++) {
+                                        TextBlock item = items.valueAt(i);
+                                        stringBuilder.append(item.getValue());
+                                        stringBuilder.append("\n");
                                     }
+                                    s = stringBuilder.toString();
+                                    mTextView.setText(stringBuilder.toString());
+                                    a = pullLinks(s);
+                                    if (isOnline()) {
+                                        while (!a.isEmpty()) {
+                                            if (Patterns.WEB_URL.matcher(a.get(0).toString()).matches()) {
+                                                if ((!a.get(0).toString().startsWith("https://")) && (!a.get(0).toString().startsWith("http://"))) {
+                                                    s1 = "https://" + a.get(0).toString();
+                                                }
+                                                if (s1.startsWith("http://")) {
+                                                    s1 = s1.replaceFirst("^(http|https)://", "https://");
+                                                }
+                                                arrayAdapter.add(s1);
+                                            }
+                                            a.remove(0);
+                                            if (a.isEmpty()&&!arrayAdapter.isEmpty()) {
+                                                showalertdialog(getActivity());
+                                            }
+                                        }
 
+                                    } else {
+                                        showtoast("NO INTERNET");
+                                        flag = 1;
+                                    }
                                 }
-                                else {
-                                    showtoast("NO INTERNET");
-                                }
-                            }
-                        });
+                            });
+                        }
+
+
+                        if (flag1 == 0) {
+                            flag = 1;
+                        }
+
                     }
+
                 }
             });
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        startCameraSource();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Stop camera on pause
+        mCameraSource.stop();
     }
 
     private ArrayList pullLinks(String text) {
@@ -233,7 +257,8 @@ public class ocrfragment extends android.support.v4.app.Fragment implements
     }
 
     private void showtoast(String s) {
-        Toast.makeText(getActivity(), s, Toast.LENGTH_SHORT).show();
+        if(getActivity()!=null){
+        Toast.makeText(getActivity(), s, Toast.LENGTH_SHORT).show();}
     }
 
     class Malicious123 extends AsyncTask<String, Void, Wrapper> {
@@ -279,7 +304,7 @@ public class ocrfragment extends android.support.v4.app.Fragment implements
                 e.printStackTrace();
             }
 
-            Wrapper w = new Wrapper();
+
             w.responce = responseJSON;
             w.url = args[0];
 
@@ -291,34 +316,27 @@ public class ocrfragment extends android.support.v4.app.Fragment implements
 
         @Override
         protected void onPostExecute(Wrapper xml) {
-            Log.d("tagg", String.valueOf(xml.responce.length()));
-
-            if(xml.responce.length()==3){
-                showtoast("url:"+xml.url+":not malicious");
-                listener.onTaskCompleted(xml.url);
-            }
-            else{
-
-
-                showtoast("url"+xml.url+":malicious");
-                Log.d("taggy",responseJSON);
-
-            }
+            listener.onTaskCompleted(xml.url);
+            Log.d("responce", xml.responce);
 
         }
 
     }
     public boolean isOnline() {
-        ConnectivityManager cm =
-                (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(getActivity()!=null) {
+            ConnectivityManager cm =
+                    (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
 
-        return cm.getActiveNetworkInfo() != null &&
-                cm.getActiveNetworkInfo().isConnectedOrConnecting();
+            return cm.getActiveNetworkInfo() != null &&
+                    cm.getActiveNetworkInfo().isConnectedOrConnecting();
+        }
+        return false;
     }
 
     @Override
     public void onTaskCompleted(final String url123) {final Intent intent = new Intent(getActivity(), SecondActivity.class);
 
+        Log.d("url", url123);
         AndroidNetworking.get(url123)
                 .addPathParameter("pageNumber", "0")
                 .addQueryParameter("limit", "3")
@@ -329,19 +347,111 @@ public class ocrfragment extends android.support.v4.app.Fragment implements
                     public void onResponse(Response response) {
                         // do anything with response
                         if (response.isSuccessful()) {
-                            intent.putExtra("url", url123);
-                            startActivity(intent);
+                            if(w.responce.length()==3){
+                                intent.putExtra("url", w.url);
+                                String msg="url:"+w.url+"\n"+"NOT MALICIOUS\n";
+                                showDialog(getActivity(),"OCR",msg,intent);}
+                        }
+                        else {
+                            String msg1="url:"+w.url+"\n"+"MALICIOUS\n";
+                            showDialog1(getActivity(),"OCR",msg1);
                         }
                     }
 
                     @Override
                     public void onError(ANError anError) {
                         // handle error
+                        Log.d("error", "onError: "+anError);
                         Toast.makeText(getActivity(), "404 ERROR!!!", Toast.LENGTH_SHORT).show();
+                        flag=1;
+
                     }
                 });
 
 
+    }
+    public void showalertdialog(final Activity act){
+        flag1=1;
+        AlertDialog.Builder builderSingle = new AlertDialog.Builder(act);
+        builderSingle.setTitle("OCR");
+        builderSingle.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+                if(arrayAdapter!= null)
+                {
+                    arrayAdapter.clear();
+                }
+                flag=1;
+                flag1=0;
+                dialog.dismiss();
+            }
+        });
+        builderSingle.setAdapter(arrayAdapter, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String strName = arrayAdapter.getItem(which);
+                Malicious123 m = new Malicious123(ocrfragment.this);
+                m.execute(strName);
+                if(arrayAdapter!= null)
+                {
+                    arrayAdapter.clear();
+                }
+                flag=1;
+                flag1=0;
+            }
+        });
+        if(!arrayAdapter.isEmpty()){
+        builderSingle.show();}
+    }
+    public void showDialog(Activity activity, String title, CharSequence message, final Intent act) {
+        flag1=1;
+        final android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(activity);
+
+        if (title != null) builder.setTitle(title);
+
+        builder.setMessage(message);
+        builder.setPositiveButton("viewurl", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked OK button
+
+                startActivity(act);
+                flag=1;
+                flag1=0;
+            }
+        });
+        builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+                flag=1;
+                flag1=0;
+                dialog.dismiss();
+
+
+            }
+        });
+
+            builder.show();
+    }
+    public void showDialog1(Activity activity, String title, CharSequence message) {
+        flag1=1;
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(activity);
+
+        if (title != null) builder.setTitle(title);
+
+
+        builder.setMessage(message);
+        builder.setNegativeButton("ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+                flag=1;
+                flag1=0;
+                dialog.dismiss();
+
+            }
+        });
+        builder.show();
     }
 
 

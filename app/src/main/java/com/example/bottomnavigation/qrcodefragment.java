@@ -2,7 +2,10 @@ package com.example.bottomnavigation;
 
 
 import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -43,6 +46,8 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
     private ImageButton imageButton,imageButton1;
     private String urls;
     private String responseJSON;
+    private int flag=1;
+    Wrapper w = new Wrapper();
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup viewGroup, Bundle savedInstanceState) {
@@ -90,25 +95,30 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
     @Override
     public void handleResult(Result result) {
         urls = result.getText();
-        if(isOnline()){
-            if (urls != null && !urls.isEmpty() && Patterns.WEB_URL.matcher(urls).matches()){
-                if ((!urls.startsWith("https://")) && (!urls.startsWith("http://"))) {
-                    urls = "https://" + urls;
+
+        if(flag==1) {
+            flag=0;
+            if (isOnline()) {
+                if (urls != null && !urls.isEmpty() && Patterns.WEB_URL.matcher(urls).matches()) {
+                    if ((!urls.startsWith("https://")) && (!urls.startsWith("http://"))) {
+                        urls = "https://" + urls;
+                    }
+                    if (urls.startsWith("http://")) {
+                        urls = urls.replaceFirst("^(http|https)://", "https://");
+                    }
+                    Malicious1234 m = new Malicious1234(this);
+                    m.execute(urls);
+
+                } else {
+                    showtoast("The QRCODE is not a url");
+                    flag=1;
                 }
-                Malicious1234 m = new Malicious1234(this);
-                m.execute(urls);
 
+            } else {
+                showtoast("No Internet Connection");
+                flag=1;
             }
-            else {
-                showtoast("The QRCODE is not a url");
-            }
-
-        }
-        else {
-            showtoast("No Internet Connection");
-        }
-        Toast.makeText(getActivity(),result.getText(),Toast.LENGTH_SHORT).show();
-        mScannerView.resumeCameraPreview(this);
+        }mScannerView.resumeCameraPreview(this);
     }
 
     @Override
@@ -127,18 +137,22 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
         mScannerView.stopCamera();
     }
     public boolean isOnline() {
-        ConnectivityManager cm =
-                (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(getActivity()!=null) {
+            ConnectivityManager cm =
+                    (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
 
-        return cm.getActiveNetworkInfo() != null &&
-                cm.getActiveNetworkInfo().isConnectedOrConnecting();
+            return cm.getActiveNetworkInfo() != null &&
+                    cm.getActiveNetworkInfo().isConnectedOrConnecting();
+        }
+        return false;
     }
     private void showtoast(String s) {
         Toast.makeText(getActivity(), s, Toast.LENGTH_SHORT).show();
     }
     @Override
-    public void onTaskCompleted(final String url) {final Intent intent = new Intent(getActivity(), SecondActivity.class);
-
+    public void onTaskCompleted(String url) {
+        final Intent intent = new Intent(getActivity(), SecondActivity.class);
+        Log.d("url", url);
         AndroidNetworking.get(url)
                 .addPathParameter("pageNumber", "0")
                 .addQueryParameter("limit", "3")
@@ -149,15 +163,23 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
                     public void onResponse(Response response) {
                         // do anything with response
                         if (response.isSuccessful()) {
-                            intent.putExtra("url", url);
-                            startActivity(intent);
+                            if(w.responce.length()==3){
+                                intent.putExtra("url", w.url);
+                                String msg="url:"+w.url+"\n"+"NOT MALICIOUS\n";
+                                showDialog(getActivity(),"QRCODE",msg,intent);}
+                            }
+                            else {
+                            String msg1="url:"+w.url+"\n"+"MALICIOUS\n";
+                            showDialog1(getActivity(),"QRCODE",msg1);
                         }
                     }
 
                     @Override
                     public void onError(ANError anError) {
                         // handle error
+                        Log.d("error", "onError: "+anError);
                         Toast.makeText(getActivity(), "404 ERROR!!!", Toast.LENGTH_SHORT).show();
+                        flag=1;
                     }
                 });
 
@@ -206,7 +228,7 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
                 e.printStackTrace();
             }
 
-            Wrapper w = new Wrapper();
+
             w.responce = responseJSON;
             w.url = args[0];
 
@@ -218,21 +240,47 @@ public class qrcodefragment extends android.support.v4.app.Fragment implements
 
         @Override
         protected void onPostExecute(Wrapper xml) {
-            Log.d("tagg", String.valueOf(xml.responce.length()));
-
-            if(xml.responce.length()==3){
-                showtoast("not malicious");
-                listener.onTaskCompleted(xml.url);
-            }
-            else{
-
-
-                showtoast("malicious");
-                Log.d("taggy",responseJSON);
-
-            }
-
+            listener.onTaskCompleted(xml.url);
+            Log.d("responce", xml.responce);
         }
 
+    }
+    public void showDialog(Activity activity, String title, CharSequence message, final Intent act) {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+
+        if (title != null) builder.setTitle(title);
+
+        builder.setMessage(message);
+        builder.setPositiveButton("viewurl", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked OK button
+                flag=1;
+                startActivity(act);
+            }
+        });
+        builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+                flag=1;
+                mScannerView.resumeCameraPreview(qrcodefragment.this);
+            }
+        });
+        builder.show();
+    }
+    public void showDialog1(Activity activity, String title, CharSequence message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+
+        if (title != null) builder.setTitle(title);
+
+        builder.setMessage(message);
+        builder.setNegativeButton("ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+                flag=1;
+                mScannerView.resumeCameraPreview(qrcodefragment.this);
+
+            }
+        });
+        builder.show();
     }
 }
