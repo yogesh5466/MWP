@@ -9,7 +9,11 @@ import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MenuItem;
+
+import com.google.firebase.messaging.RemoteMessage;
+
 public class MainActivity extends AppCompatActivity {
     private android.support.v4.app.Fragment frag1,frag2,frag3;
 
@@ -81,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
 
     }
+
 
 
 
