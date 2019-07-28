@@ -180,7 +180,7 @@ public class urlfragment extends android.support.v4.app.Fragment implements
         }
 
         protected Wrapper doInBackground(String... args) {
-            String postURL = "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=AIzaSyDGh1PADFcsgJLFBcNe55KNfVwZXVjgK7Q";
+            String postURL = "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=APIKEY";
 
             String requestBody = "{" +
                     "    \"client\": {" +
